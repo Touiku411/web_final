@@ -20,6 +20,7 @@ MAX_BFS_PAGES = 80
 MAX_LINKS_PER_PAGE = 120
 MAX_BACKLINKS = 500
 MIN_RANDOM_LINKS = 20
+MAX_PLAYABLE_LINK_CHECKS = 80
 TITLE_VARIANTS = str.maketrans({
     "学": "學",
     "台": "臺",
@@ -72,19 +73,30 @@ def generate_random_task():
             continue
 
         if random.random() < 0.65:
+            target = choose_playable_link(playable_links)
+            if not target:
+                continue
+
             return {
                 "start": current_title,
-                "target": random.choice(playable_links),
+                "target": target,
                 "difficulty": "easy"
             }
 
-        middle = random.choice(playable_links[:80])
+        middle = choose_playable_link(playable_links[:80])
+        if not middle:
+            continue
+
         middle_title, middle_links = get_wiki_links_internal(middle)
         target_links = filter_playable_links(middle_links)
         if target_links:
+            target = choose_playable_link(target_links)
+            if not target:
+                continue
+
             return {
                 "start": current_title,
-                "target": random.choice(target_links),
+                "target": target,
                 "difficulty": "normal",
                 "via": middle_title
             }
@@ -167,6 +179,27 @@ def is_good_random_title(title):
         2 <= len(title) <= 18
         and not any(fragment in title for fragment in blocked_fragments)
     )
+
+
+def choose_playable_link(links):
+    candidates = filter_playable_links(links)
+    random.shuffle(candidates)
+
+    for link in candidates[:MAX_PLAYABLE_LINK_CHECKS]:
+        current_title, playable_links = get_wiki_links_internal(link)
+        if playable_links:
+            return current_title
+
+    return None
+
+
+def first_playable_title(titles):
+    for title in titles:
+        current_title, links = get_wiki_links_internal(title)
+        if links:
+            return current_title
+
+    return None
 
 
 # 內部函式：專門用來抓取連結
@@ -360,21 +393,30 @@ def find_shortest_path(start, target):
     # 先用反向連結找 1 到 3 步路徑，比盲目 BFS 穩定很多。
     started_at = time.monotonic()
 
-    if same_title(start, target):
-        return jsonify({"path": [start]})
+    start_title, start_links = get_wiki_links_internal(start)
+    if not start_links:
+        return jsonify({"path": [], "message": f"起點「{start}」不是可載入的遊戲頁面"})
 
-    _, start_links = get_wiki_links_internal(start)
-    direct_match = find_matching_title(start_links, target)
+    target_title, target_links = get_wiki_links_internal(target)
+    if not target_links:
+        return jsonify({"path": [], "message": f"目標「{target}」不是可載入的遊戲頁面"})
+
+    if same_title(start_title, target_title):
+        return jsonify({"path": [start_title]})
+
+    direct_match = find_matching_title(start_links, target_title)
     if direct_match:
-        return jsonify({"path": [start, direct_match]})
+        return jsonify({"path": [start_title, direct_match]})
 
-    target_backlinks = get_wiki_backlinks_internal(target)
+    target_backlinks = get_wiki_backlinks_internal(target_title)
     two_hop_matches = [link for link in start_links if link in target_backlinks]
     if two_hop_matches:
-        return jsonify({"path": [start, two_hop_matches[0], target]})
+        bridge = first_playable_title(two_hop_matches)
+        if bridge:
+            return jsonify({"path": [start_title, bridge, target_title]})
 
     searched_pages = 0
-    candidates = prioritize_links(start_links, target)[:MAX_BFS_PAGES]
+    candidates = prioritize_links(start_links, target_title)[:MAX_BFS_PAGES]
     for middle in candidates:
         if time.monotonic() - started_at > MAX_BFS_SECONDS:
             return jsonify({
@@ -385,17 +427,19 @@ def find_shortest_path(start, target):
         _, middle_links = get_wiki_links_internal(middle)
         searched_pages += 1
 
-        direct_match = find_matching_title(middle_links, target)
+        direct_match = find_matching_title(middle_links, target_title)
         if direct_match:
-            return jsonify({"path": [start, middle, direct_match]})
+            return jsonify({"path": [start_title, middle, direct_match]})
 
         bridge_matches = [link for link in middle_links if link in target_backlinks]
         if bridge_matches:
-            return jsonify({"path": [start, middle, bridge_matches[0], target]})
+            bridge = first_playable_title(bridge_matches)
+            if bridge:
+                return jsonify({"path": [start_title, middle, bridge, target_title]})
 
     # 找不到時再用很小範圍 BFS 補搜，避免完全漏掉特殊頁面。
-    queue = deque([(start, [start])])
-    visited = {start}
+    queue = deque([(start_title, [start_title])])
+    visited = {start_title}
 
     while queue:
         if time.monotonic() - started_at > MAX_BFS_SECONDS:
@@ -417,11 +461,11 @@ def find_shortest_path(start, target):
         _, links = get_wiki_links_internal(curr)
         searched_pages += 1
 
-        direct_match = find_matching_title(links, target)
+        direct_match = find_matching_title(links, target_title)
         if direct_match:
             return jsonify({"path": path + [direct_match]})
 
-        links = prioritize_links(links, target)[:MAX_LINKS_PER_PAGE]
+        links = prioritize_links(links, target_title)[:MAX_LINKS_PER_PAGE]
         for link in links:
             if link not in visited:
                 visited.add(link)

@@ -507,7 +507,7 @@
                         <section id="links-container" class="link-reader"></section>
 
                         <section id="result-area" class="result">
-                            <h2>抵達終點</h2>
+                            <h2 id="result-title">抵達終點</h2>
                             <p>你的路徑：<span id="player-path"></span></p>
                             <p>AI 找到的建議路徑：<span id="ai-path">搜尋中...</span></p>
                         </section>
@@ -584,6 +584,7 @@
         allLinks = [];
         historyPath = [];
         document.getElementById("result-area").style.display = "none";
+        document.getElementById("result-title").innerText = "抵達終點";
         document.getElementById("ai-path-text").innerText = "AI 建議路徑：尚未分析";
         document.getElementById("ai-path").innerText = "搜尋中...";
         document.getElementById("link-filter").value = "";
@@ -746,6 +747,7 @@
         stopTimer();
         document.getElementById("links-container").innerHTML = "";
         document.getElementById("result-area").style.display = "block";
+        document.getElementById("result-title").innerText = "抵達終點";
         document.getElementById("player-path").innerText = historyPath.join(" → ");
         document.getElementById("info-state").innerText = "已完成";
 
@@ -753,8 +755,7 @@
         aiPathDisplay.innerText = "正在分析建議路徑...";
 
         try {
-            const data = await fetchJsonWithTimeout(`${API_BASE}/shortest_path?start=${encodeURIComponent(historyPath[0])}&target=${encodeURIComponent(targetTitle)}`);
-            aiPathDisplay.innerText = (data.path && data.path.length > 0) ? data.path.join(" → ") : (data.message || "搜尋過深，未找到。");
+            aiPathDisplay.innerText = await getSuggestedPathText();
         } catch (e) {
             aiPathDisplay.innerText = e.name === "AbortError" ? "搜尋太久，已停止等待。" : "無法連接搜尋引擎。";
         }
@@ -768,17 +769,18 @@
         btn.disabled = true;
 
         try {
-            const startNode = historyPath[0];
-            if (!startNode) throw new Error("遊戲尚未初始化完成");
-            const data = await fetchJsonWithTimeout(`${API_BASE}/shortest_path?start=${encodeURIComponent(startNode)}&target=${encodeURIComponent(targetTitle)}`);
+            const suggestedPathText = await getSuggestedPathText();
 
-            pathText.innerText = (data.path && data.path.length > 0)
-                ? `AI 建議路徑：${data.path.join(" → ")}`
-                : `AI 建議路徑：${data.message || "抱歉，在設定的搜尋限制內找不到路徑。"}`;
+            pathText.innerText = `AI 建議路徑：${suggestedPathText}`;
+            if (document.getElementById("result-area").style.display !== "none") {
+                document.getElementById("ai-path").innerText = suggestedPathText;
+            }
         } catch (e) {
-            pathText.innerText = e.name === "AbortError"
-                ? "AI 建議路徑：搜尋太久，已停止等待。你可以先繼續玩。"
-                : "AI 建議路徑：無法連線至後端搜尋伺服器。";
+            const errorText = e.name === "AbortError" ? "搜尋太久，已停止等待。你可以先繼續玩。" : "無法連線至後端搜尋伺服器。";
+            pathText.innerText = `AI 建議路徑：${errorText}`;
+            if (document.getElementById("result-area").style.display !== "none") {
+                document.getElementById("ai-path").innerText = errorText;
+            }
             console.error(e);
         } finally {
             btn.disabled = false;
@@ -790,9 +792,21 @@
         stopTimer();
         document.getElementById("links-container").innerHTML = "";
         document.getElementById("result-area").style.display = "block";
+        document.getElementById("result-title").innerText = "放棄";
         document.getElementById("player-path").innerText = historyPath.join(" → ");
+        document.getElementById("ai-path").innerText = "正在分析建議路徑...";
         document.getElementById("info-state").innerText = "已放棄";
         showShortestPath();
+    }
+
+    async function getSuggestedPathText() {
+        const startNode = historyPath[0];
+        if (!startNode) throw new Error("遊戲尚未初始化完成");
+
+        const data = await fetchJsonWithTimeout(`${API_BASE}/shortest_path?start=${encodeURIComponent(startNode)}&target=${encodeURIComponent(targetTitle)}`);
+        return (data.path && data.path.length > 0)
+            ? data.path.join(" → ")
+            : (data.message || "抱歉，在設定的搜尋限制內找不到路徑。");
     }
 
     async function fetchJsonWithTimeout(url, timeoutMs = 12000) {
