@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wikipedia Game</title>
+    <style>
+        :root {
+            --ink: #202122;
+            --muted: #54595d;
+            --line: #a2a9b1;
+            --soft-line: #c8ccd1;
+            --page: #f8f9fa;
+            --link: #0645ad;
+            --visited: #0b0080;
+            --blue-line: #a7d7f9;
+            --success: #14866d;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            color: var(--ink);
+            background: #fff;
+            font-family: sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        button, input {
+            font: inherit;
+        }
+
+        a,
+        .wiki-link,
+        .tab-button,
+        .personal-link {
+            color: var(--link);
+            text-decoration: none;
+        }
+
+        a:hover,
+        .wiki-link:hover,
+        .tab-button:hover,
+        .personal-link:hover {
+            text-decoration: underline;
+        }
+
+        .mw-shell {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 176px minmax(0, 1fr);
+            background: linear-gradient(to bottom, #fff 0, var(--page) 160px, var(--page) 100%);
+        }
+
+        .mw-sidebar {
+            padding: 12px 12px 24px;
+            background: var(--page);
+            border-right: 1px solid var(--blue-line);
+        }
+
+        .mw-logo {
+            width: 135px;
+            height: 135px;
+            margin: 0 auto 14px;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            border: 1px solid #d8d8d8;
+            background: #fff;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 72px;
+            color: #000;
+        }
+
+        .mw-wordmark {
+            margin: -6px 0 22px;
+            text-align: center;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 22px;
+            line-height: 1.1;
+        }
+
+        .portal {
+            margin: 0 0 18px;
+            padding: 0 0 10px;
+            border-bottom: 1px solid #d8d8d8;
+        }
+
+        .portal h3 {
+            margin: 0 0 6px;
+            padding-left: 4px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 400;
+        }
+
+        .portal ul {
+            margin: 0;
+            padding: 0 0 0 16px;
+            list-style: none;
+        }
+
+        .portal li {
+            margin: 3px 0;
+            font-size: 12px;
+        }
+
+        .mw-page {
+            min-width: 0;
+        }
+
+        .personal-tools {
+            height: 36px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 12px;
+            padding: 0 16px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .mw-tabs {
+            display: flex;
+            align-items: stretch;
+            justify-content: space-between;
+            min-height: 42px;
+            border-bottom: 1px solid var(--blue-line);
+            background: linear-gradient(to bottom, #fff 0, #f6f6f6 100%);
+        }
+
+        .tab-group {
+            display: flex;
+            align-items: stretch;
+        }
+
+        .tab-button {
+            min-height: 42px;
+            padding: 12px 12px 8px;
+            border: 0;
+            border-left: 1px solid var(--blue-line);
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .tab-button.active {
+            color: var(--ink);
+            background: #fff;
+            border-top: 1px solid var(--blue-line);
+            border-bottom: 1px solid #fff;
+            margin-bottom: -1px;
+        }
+
+        .search-wrap {
+            display: flex;
+            align-items: center;
+            padding: 6px 12px;
+        }
+
+        .search-box {
+            width: min(330px, 34vw);
+            height: 30px;
+            padding: 4px 8px;
+            border: 1px solid var(--soft-line);
+            background: #fff;
+        }
+
+        .content {
+            padding: 20px 24px 48px;
+            border-left: 1px solid var(--blue-line);
+            background: #fff;
+        }
+
+        .first-heading {
+            margin: 0;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--line);
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 1.8em;
+            font-weight: 400;
+            line-height: 1.3;
+            overflow-wrap: anywhere;
+        }
+
+        .site-subtitle {
+            margin: 4px 0 16px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .game-notice {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 12px;
+            margin: 0 0 18px;
+            padding: 10px 12px;
+            border: 1px solid var(--soft-line);
+            border-left: 10px solid var(--blue-line);
+            background: #f8f9fa;
+        }
+
+        .game-line {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+            align-items: center;
+        }
+
+        .game-label {
+            color: var(--muted);
+        }
+
+        .game-title {
+            font-weight: 700;
+        }
+
+        .path-line {
+            margin-top: 6px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .game-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 6px;
+        }
+
+        .mw-button {
+            min-height: 30px;
+            padding: 4px 10px;
+            border: 1px solid var(--soft-line);
+            border-radius: 2px;
+            color: var(--ink);
+            background: linear-gradient(to bottom, #fff 0, #f8f9fa 100%);
+            cursor: pointer;
+        }
+
+        .mw-button:hover {
+            border-color: var(--line);
+        }
+
+        .mw-button.primary {
+            color: #fff;
+            border-color: #36c;
+            background: #36c;
+        }
+
+        .loading {
+            display: none;
+            margin: 0 0 14px;
+            padding: 8px 10px;
+            border: 1px solid #f2c779;
+            background: #fff8e5;
+            color: var(--ink);
+        }
+
+        .article-body {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 280px;
+            gap: 24px;
+            align-items: start;
+        }
+
+        .lead {
+            max-width: 78ch;
+            font-size: 15px;
+        }
+
+        .lead p {
+            margin: 0 0 0.75em;
+        }
+
+        .infobox {
+            width: 100%;
+            border: 1px solid var(--line);
+            background: #f8f9fa;
+            font-size: 13px;
+        }
+
+        .infobox-title {
+            padding: 6px 8px;
+            text-align: center;
+            font-weight: 700;
+            background: #eaecf0;
+        }
+
+        .infobox-row {
+            display: grid;
+            grid-template-columns: 88px minmax(0, 1fr);
+            border-top: 1px solid #eaecf0;
+        }
+
+        .infobox-row div {
+            padding: 6px 8px;
+        }
+
+        .infobox-row div:first-child {
+            font-weight: 700;
+            background: #f2f2f2;
+        }
+
+        .toc {
+            width: max-content;
+            max-width: 100%;
+            margin: 16px 0 18px;
+            padding: 8px 12px;
+            border: 1px solid var(--line);
+            background: #f8f9fa;
+            font-size: 13px;
+        }
+
+        .toc-title {
+            text-align: center;
+            font-weight: 700;
+        }
+
+        .toc ol {
+            margin: 6px 0 0;
+            padding-left: 24px;
+        }
+
+        .section-heading {
+            margin: 20px 0 8px;
+            padding-bottom: 3px;
+            border-bottom: 1px solid var(--line);
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 1.5em;
+            font-weight: 400;
+        }
+
+        .link-reader {
+            max-width: 86ch;
+            font-size: 15px;
+            line-height: 1.95;
+        }
+
+        .wiki-link {
+            border: 0;
+            padding: 0;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        .wiki-link:visited {
+            color: var(--visited);
+        }
+
+        .result {
+            display: none;
+            margin-top: 18px;
+            padding: 10px 12px;
+            border: 1px solid #a3d3c2;
+            background: #f0fdf9;
+        }
+
+        .result h2 {
+            margin: 0 0 6px;
+            color: var(--success);
+            font-size: 1.35em;
+        }
+
+        .empty-state {
+            color: var(--muted);
+        }
+
+        @media (max-width: 900px) {
+            .mw-shell {
+                display: block;
+            }
+
+            .mw-sidebar {
+                display: none;
+            }
+
+            .mw-tabs {
+                flex-direction: column;
+            }
+
+            .search-box {
+                width: 100%;
+            }
+
+            .game-notice {
+                grid-template-columns: 1fr;
+            }
+
+            .game-actions {
+                justify-content: flex-start;
+            }
+
+            .article-body {
+                display: block;
+            }
+
+            .infobox {
+                margin: 0 0 16px;
+            }
+
+            .content {
+                border-left: 0;
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="mw-shell">
+        <aside class="mw-sidebar">
+            <div class="mw-logo">W</div>
+            <div class="mw-wordmark">Wikipedia<br>Game</div>
+
+            <nav class="portal">
+                <h3>導覽</h3>
+                <ul>
+                    <li><a href="#" onclick="startGame(); return false;">首頁</a></li>
+                    <li><a href="#" onclick="startGame(); return false;">隨機條目</a></li>
+                    <li><a href="#" onclick="showShortestPath(); return false;">提示</a></li>
+                </ul>
+            </nav>
+
+            <nav class="portal">
+                <h3>挑戰</h3>
+                <ul>
+                    <li>起點：<span id="nav-start">---</span></li>
+                    <li>終點：<span id="nav-target">---</span></li>
+                    <li>步數：<span id="nav-steps">0</span></li>
+                    <li>時間：<span id="nav-time">00:00</span></li>
+                </ul>
+            </nav>
+
+            <nav class="portal">
+                <h3>工具</h3>
+                <ul>
+                    <li><a href="#" onclick="giveUp(); return false;">放棄挑戰</a></li>
+                    <li><a href="#" onclick="startGame(); return false;">重新開始</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <div class="mw-page">
+            <div class="personal-tools">
+                <span>未登入</span>
+                <a class="personal-link" href="#" onclick="return false;">討論</a>
+                <a class="personal-link" href="#" onclick="return false;">貢獻</a>
+                <a class="personal-link" href="#" onclick="return false;">建立帳號</a>
+                <a class="personal-link" href="#" onclick="return false;">登入</a>
+            </div>
+
+            <div class="mw-tabs">
+                <div class="tab-group">
+                    <button class="tab-button active" type="button">條目</button>
+                    <button class="tab-button" type="button">討論</button>
+                </div>
+                <div class="tab-group">
+                    <button class="tab-button active" type="button">閱讀</button>
+                    <button class="tab-button" type="button">檢視原始碼</button>
+                    <button class="tab-button" type="button">檢視歷史</button>
+                    <div class="search-wrap">
+                        <input id="link-filter" class="search-box" type="search" placeholder="搜尋本頁連結">
+                    </div>
+                </div>
+            </div>
+
+            <main class="content">
+                <h1 id="article-title" class="first-heading">載入中...</h1>
+                <div class="site-subtitle">維基百科，自由的百科全書</div>
+
+                <section class="game-notice">
+                    <div>
+                        <div class="game-line">
+                            <span><span class="game-label">目前：</span><span id="current-title" class="game-title">載入中...</span></span>
+                            <span><span class="game-label">目標：</span><span id="target-title" class="game-title">---</span></span>
+                            <span><span class="game-label">步數：</span><span id="click-count">0</span></span>
+                            <span><span class="game-label">時間：</span><span id="timer">00:00</span></span>
+                        </div>
+                        <div id="path-list" class="path-line">路徑：---</div>
+                        <div id="ai-path-text" class="path-line">AI 建議路徑：尚未分析</div>
+                    </div>
+                    <div class="game-actions">
+                        <button id="show-path-btn" class="mw-button primary" type="button" onclick="showShortestPath()">顯示建議路徑</button>
+                        <button class="mw-button" type="button" onclick="startGame()">重新開始</button>
+                        <button class="mw-button" type="button" onclick="giveUp()">放棄挑戰</button>
+                    </div>
+                </section>
+
+                <div class="loading" id="loading-msg">正在通訊維基百科...</div>
+
+                <div class="article-body">
+                    <section>
+                        <div id="extract" class="lead"></div>
+
+                        <nav class="toc" aria-label="目錄">
+                            <div class="toc-title">目錄</div>
+                            <ol>
+                                <li><a href="#links-heading">相關條目</a></li>
+                                <li><a href="#result-area">挑戰結果</a></li>
+                            </ol>
+                        </nav>
+
+                        <h2 id="links-heading" class="section-heading">相關條目</h2>
+                        <p class="site-subtitle">如果內文中的藍色詞條太少，可從這裡繼續前往其他條目。</p>
+                        <section id="links-container" class="link-reader"></section>
+
+                        <section id="result-area" class="result">
+                            <h2>抵達終點</h2>
+                            <p>你的路徑：<span id="player-path"></span></p>
+                            <p>AI 找到的建議路徑：<span id="ai-path">搜尋中...</span></p>
+                        </section>
+                    </section>
+
+                    <aside class="infobox">
+                        <div class="infobox-title">Wikipedia Game</div>
+                        <div class="infobox-row">
+                            <div>目前</div>
+                            <div id="info-current">載入中...</div>
+                        </div>
+                        <div class="infobox-row">
+                            <div>目標</div>
+                            <div id="info-target">---</div>
+                        </div>
+                        <div class="infobox-row">
+                            <div>步數</div>
+                            <div id="info-steps">0</div>
+                        </div>
+                        <div class="infobox-row">
+                            <div>時間</div>
+                            <div id="info-time">00:00</div>
+                        </div>
+                        <div class="infobox-row">
+                            <div>狀態</div>
+                            <div id="info-state">挑戰中</div>
+                        </div>
+                    </aside>
+                </div>
+            </main>
+        </div>
+    </div>
+
+<script>
+    let clickCount = 0;
+    let targetTitle = "---";
+    let historyPath = [];
+    let gameActive = true;
+    let allLinks = [];
+    let startedAt = null;
+    let timerId = null;
+    const API_BASE = ["http:", "https:"].includes(window.location.protocol)
+        ? `${window.location.origin}/api`
+        : "http://127.0.0.1:5000/api";
+
+    window.onload = () => {
+        document.getElementById("link-filter").addEventListener("input", renderLinks);
+        startGame();
+    };
+
+    async function startGame() {
+        try {
+            showLoader("正在準備題目...");
+            resetGameState();
+            const res = await fetch(`${API_BASE}/task`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const task = await res.json();
+
+            targetTitle = task.target;
+            historyPath = [task.start];
+            startedAt = Date.now();
+            startTimer();
+            updateHud();
+            await fetchPage(task.start, false);
+        } catch (e) {
+            showLoader(`初始化失敗，請確認後端已執行 python app.py，API：${API_BASE}`);
+            console.error(e);
+        }
+    }
+
+    function resetGameState() {
+        clickCount = 0;
+        gameActive = true;
+        allLinks = [];
+        historyPath = [];
+        document.getElementById("result-area").style.display = "none";
+        document.getElementById("ai-path-text").innerText = "AI 建議路徑：尚未分析";
+        document.getElementById("ai-path").innerText = "搜尋中...";
+        document.getElementById("link-filter").value = "";
+        document.getElementById("info-state").innerText = "挑戰中";
+        stopTimer();
+        setTimeText("00:00");
+    }
+
+    async function fetchPage(title, countStep = true) {
+        if (!gameActive) return;
+
+        showLoader("正在通訊維基百科...");
+        document.getElementById("links-container").innerHTML = "";
+
+        try {
+            const res = await fetch(`${API_BASE}/wiki?title=${encodeURIComponent(title)}`);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+            if (countStep) {
+                clickCount++;
+                historyPath.push(data.current_title);
+            }
+
+            allLinks = data.links || [];
+            document.getElementById("link-filter").value = "";
+            renderArticle(data);
+            updateHud(data.current_title);
+            hideLoader();
+
+            if (sameTitle(data.current_title, targetTitle)) {
+                endGame();
+            }
+        } catch (e) {
+            showLoader(`載入「${title}」失敗：${e.message}`);
+            console.error(e);
+        }
+    }
+
+    function renderArticle(data) {
+        document.getElementById("article-title").innerText = data.current_title;
+        renderExtract(data.extract);
+        renderLinks();
+    }
+
+    function renderExtract(extract) {
+        const extractEl = document.getElementById("extract");
+        extractEl.innerHTML = "";
+        const text = (extract || "此條目沒有可用摘要。請從下方連結繼續前往下一頁。").trim();
+        const usedLinks = new Set();
+        text.split(/\n+/).slice(0, 5).forEach(paragraph => {
+            const p = document.createElement("p");
+            appendLinkedText(p, paragraph, usedLinks);
+            extractEl.appendChild(p);
+        });
+
+        if (usedLinks.size < 8 && allLinks.length > 0) {
+            const related = document.createElement("p");
+            related.appendChild(document.createTextNode("相關條目包括"));
+            allLinks
+                .filter(link => !usedLinks.has(link))
+                .slice(0, 14)
+                .forEach((link, index) => {
+                    related.appendChild(document.createTextNode(index === 0 ? " " : "、"));
+                    related.appendChild(createWikiLink(link));
+                    usedLinks.add(link);
+                });
+            related.appendChild(document.createTextNode("等。"));
+            extractEl.appendChild(related);
+        }
+    }
+
+    function appendLinkedText(parent, text, usedLinks) {
+        const candidates = allLinks
+            .filter(link => link.length >= 2 && text.includes(link))
+            .sort((first, second) => second.length - first.length)
+            .slice(0, 28);
+
+        let position = 0;
+        let linkedCount = 0;
+
+        while (position < text.length) {
+            const match = candidates
+                .filter(link => !usedLinks.has(link))
+                .map(link => ({ link, index: text.indexOf(link, position) }))
+                .filter(item => item.index >= 0)
+                .sort((first, second) => first.index - second.index || second.link.length - first.link.length)[0];
+
+            if (!match || linkedCount >= 12) {
+                parent.appendChild(document.createTextNode(text.slice(position)));
+                break;
+            }
+
+            if (match.index > position) {
+                parent.appendChild(document.createTextNode(text.slice(position, match.index)));
+            }
+
+            parent.appendChild(createWikiLink(match.link));
+            usedLinks.add(match.link);
+            linkedCount++;
+            position = match.index + match.link.length;
+        }
+    }
+
+    function createWikiLink(link) {
+        const button = document.createElement("button");
+        button.className = "wiki-link";
+        button.type = "button";
+        button.innerText = link;
+        button.onclick = () => fetchPage(link);
+        return button;
+    }
+
+    function renderLinks() {
+        const container = document.getElementById("links-container");
+        const filter = normalizeTitle(document.getElementById("link-filter").value || "");
+        const visibleLinks = allLinks
+            .filter(link => !filter || normalizeTitle(link).includes(filter))
+            .slice(0, 240);
+
+        container.innerHTML = "";
+        if (visibleLinks.length === 0) {
+            const empty = document.createElement("p");
+            empty.className = "empty-state";
+            empty.innerText = "沒有符合條件的可前往頁面。";
+            container.appendChild(empty);
+            return;
+        }
+
+        visibleLinks.forEach((link, index) => {
+            container.appendChild(createWikiLink(link));
+
+            if (index < visibleLinks.length - 1) {
+                container.appendChild(document.createTextNode(index % 8 === 7 ? "。" : "、"));
+            }
+        });
+    }
+
+    function updateHud(currentTitle) {
+        const current = currentTitle || historyPath[historyPath.length - 1] || "載入中...";
+        const start = historyPath[0] || "---";
+        const pathText = historyPath.length ? `路徑：${historyPath.join(" → ")}` : "路徑：---";
+
+        document.getElementById("current-title").innerText = current;
+        document.getElementById("target-title").innerText = targetTitle;
+        document.getElementById("click-count").innerText = clickCount;
+        document.getElementById("path-list").innerText = pathText;
+
+        document.getElementById("nav-start").innerText = start;
+        document.getElementById("nav-target").innerText = targetTitle;
+        document.getElementById("nav-steps").innerText = clickCount;
+
+        document.getElementById("info-current").innerText = current;
+        document.getElementById("info-target").innerText = targetTitle;
+        document.getElementById("info-steps").innerText = clickCount;
+    }
+
+    async function endGame() {
+        gameActive = false;
+        stopTimer();
+        document.getElementById("links-container").innerHTML = "";
+        document.getElementById("result-area").style.display = "block";
+        document.getElementById("player-path").innerText = historyPath.join(" → ");
+        document.getElementById("info-state").innerText = "已完成";
+
+        const aiPathDisplay = document.getElementById("ai-path");
+        aiPathDisplay.innerText = "正在分析建議路徑...";
+
+        try {
+            const data = await fetchJsonWithTimeout(`${API_BASE}/shortest_path?start=${encodeURIComponent(historyPath[0])}&target=${encodeURIComponent(targetTitle)}`);
+            aiPathDisplay.innerText = (data.path && data.path.length > 0) ? data.path.join(" → ") : (data.message || "搜尋過深，未找到。");
+        } catch (e) {
+            aiPathDisplay.innerText = e.name === "AbortError" ? "搜尋太久，已停止等待。" : "無法連接搜尋引擎。";
+        }
+    }
+
+    async function showShortestPath() {
+        const pathText = document.getElementById("ai-path-text");
+        const btn = document.getElementById("show-path-btn");
+
+        pathText.innerText = "AI 建議路徑：正在分析維基百科資料圖...";
+        btn.disabled = true;
+
+        try {
+            const startNode = historyPath[0];
+            if (!startNode) throw new Error("遊戲尚未初始化完成");
+            const data = await fetchJsonWithTimeout(`${API_BASE}/shortest_path?start=${encodeURIComponent(startNode)}&target=${encodeURIComponent(targetTitle)}`);
+
+            pathText.innerText = (data.path && data.path.length > 0)
+                ? `AI 建議路徑：${data.path.join(" → ")}`
+                : `AI 建議路徑：${data.message || "抱歉，在設定的搜尋限制內找不到路徑。"}`;
+        } catch (e) {
+            pathText.innerText = e.name === "AbortError"
+                ? "AI 建議路徑：搜尋太久，已停止等待。你可以先繼續玩。"
+                : "AI 建議路徑：無法連線至後端搜尋伺服器。";
+            console.error(e);
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function giveUp() {
+        gameActive = false;
+        stopTimer();
+        document.getElementById("links-container").innerHTML = "";
+        document.getElementById("result-area").style.display = "block";
+        document.getElementById("player-path").innerText = historyPath.join(" → ");
+        document.getElementById("info-state").innerText = "已放棄";
+        showShortestPath();
+    }
+
+    async function fetchJsonWithTimeout(url, timeoutMs = 12000) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+        try {
+            const res = await fetch(url, { signal: controller.signal });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+            return data;
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    }
+
+    function startTimer() {
+        stopTimer();
+        timerId = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+            const minutes = String(Math.floor(elapsed / 60)).padStart(2, "0");
+            const seconds = String(elapsed % 60).padStart(2, "0");
+            setTimeText(`${minutes}:${seconds}`);
+        }, 500);
+    }
+
+    function setTimeText(value) {
+        document.getElementById("timer").innerText = value;
+        document.getElementById("nav-time").innerText = value;
+        document.getElementById("info-time").innerText = value;
+    }
+
+    function stopTimer() {
+        if (timerId) {
+            clearInterval(timerId);
+            timerId = null;
+        }
+    }
+
+    function showLoader(message) {
+        const loader = document.getElementById("loading-msg");
+        loader.style.display = "block";
+        loader.innerText = message;
+    }
+
+    function hideLoader() {
+        document.getElementById("loading-msg").style.display = "none";
+    }
+
+    function normalizeTitle(title) {
+        const variants = {
+            "学": "學",
+            "台": "臺",
+            "语": "語",
+            "计": "計",
+            "机": "機",
+            "电": "電",
+            "脑": "腦",
+            "软": "軟",
+            "国": "國",
+            "会": "會",
+            "发": "發",
+            "开": "開",
+            "门": "門",
+            "体": "體",
+            "风": "風",
+            "乐": "樂",
+            "网": "網",
+            "维": "維",
+            "论": "論",
+            "实": "實",
+            "验": "驗",
+            "类": "類",
+            "标": "標",
+            "准": "準"
+        };
+
+        return title.trim().split("").map(char => variants[char] || char).join("");
+    }
+
+    function sameTitle(first, second) {
+        return normalizeTitle(first) === normalizeTitle(second);
+    }
+</script>
+</body>
+</html>
